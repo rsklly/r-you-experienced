@@ -1,0 +1,64 @@
+# Practicing classification using the Kaggle framingham dataset, available at <https://www.kaggle.com/amanajmera1/framingham-heart-study-dataset>
+df <- read.table(file = '~/R/Tests/framingham.csv', header = TRUE, sep = ",",dec = ".")
+# Let's have a look at the df to see what the data is
+summary(df)
+str(df)
+# Seems like there are some NAs in the script, let's have a look deeper?
+sum(is.na(df))
+dim(df)
+# Ok so there are 645 rows with unavailable data, out of 4240. Let's exclude them for now
+df1 <- na.omit(df)
+# Now we have cleaner data, on with the classification algo!
+# First step is to load a few packages
+library(rpart)
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+# For this practice I'm going to use decision trees rpart() and try out n-fold cross-validation.
+# Set seed
+set.seed(1)
+# Shuffling the Dataframe so that each fold has a good distribution.
+n <- nrow(df1)
+shuffled <- df1[sample(n),]
+train <- shuffled[1:round(0.7 * n),]
+test <- shuffled[(round(0.7 * n) + 1):n,]
+# Set number of folds
+folds <- 8
+# Initialize the accuracy, precision and recall vectors
+accs <- rep(0,folds)
+prec <- rep(0,folds)
+reca <- rep(0,folds)
+# Let's run the classification algorithm
+for (i in 1:folds) {
+  # These indices indicate the interval of the test set
+  indices <- (((i-1) * round((1/folds)*nrow(shuffled))) + 1):((i*round((1/folds) * nrow(shuffled))))
+  # Exclude them from the train set
+  train <- shuffled[-indices,]
+  # Include them in the test set
+  test <- shuffled[indices,]
+  # A model is learned using each training set
+  tree <- rpart(TenYearCHD ~ ., train, method = "class", control= rpart.control(cp = 0.007))
+  
+  # Make a prediction on the test set using tree
+  pred <- predict(tree, test, type = "class")
+  
+  # Assign the confusion matrix to conf
+  conf <- table(test$TenYearCHD, pred)
+
+  # Assign the accuracy, precision and recall of this model to the ith index.
+  accs[i] <- sum(diag(conf))/ sum(conf)
+  prec[i] <- conf[2,2]      / sum(conf[,2])
+  reca[i] <- conf[2,2]      / sum(conf[2,])
+}  
+# Visualising the tree
+fancyRpartPlot(tree)
+# Noting the quality of the model
+tree_accuracy  <- mean(accs)
+tree_precision <- mean(prec, na.rm = TRUE)
+tree_recall    <- mean(reca)
+# Let's see how well it explains the data
+tree_accuracy
+tree_precision
+tree_recall
+# Accuracy isn't bad, but precision and recall aren't great, especially recall. 
+# Perhaps bootstrapping would help?
