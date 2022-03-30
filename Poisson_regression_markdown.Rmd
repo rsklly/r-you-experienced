@@ -1,5 +1,5 @@
 ---
-title: "Poisson Regression"
+title: "Decomposing revenue drivers using Random Forests and Poisson Regression"
 author: "Ross Kelly"
 date: "30/03/2022"
 output: html_document
@@ -11,9 +11,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Often we find ourselves needing to understand the drivers behind a continuous dependent variable e.g. revenue by store, and it may be difficult to understand a) which variables are important and b) how the interaction of variables might impact revenue. 
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+For example, amongst our 30-40 potential variables, opening hours may not appear particularly explanatory, unless it is taken in conjunction with location (e.g. stores that are open later in denser populated areas perform better than early shutting stores, but the effect is masked when the data is taken in aggregate alongside stores in rural areas). 
+
+When it is necessary to understand the impact of multiple drivers, we typically like to use regression modelling, since it is able to parse the impact of one driver _whilst holding others constant_. 
+
+What follows is a worked example using anonymised data for one way to go about this. We'll be looking at store-level revenues for a retailer during covid, and will use a random forest regression to highlight feature importance, followed by a poisson regression to predict sales. We will then test this using cross-fold validation, and pull out some insights.
 
 ```{r cars}
 summary(cars)
