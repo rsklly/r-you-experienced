@@ -17,14 +17,14 @@ _"Is there a way we can say that the difference in Net Promoter Score is_ __stat
 
 The answer to this question, as always, is _it depends_. 
 Statistically significant difference is when, at a given level of confidence, we reject the null hypothesis that two statistics are derived from the same population, and that there is a genuine difference in performance between the two groups. 
-Commercially, this means that we believe there is an acceptably low likelihood that our survey has poorly sampled the true population, and that therefore the difference we see between our two brands is reflective of a real difference that exists in net promoter score.
+Commercially, this means that we believe there is an acceptably low likelihood that our survey has poorly sampled the true population, and that therefore the difference we see between our two brands is reflective of a real difference that exists in Net Promoter Score.
 
 Whilst this can be achieved by a simple T test for two brands (**NB:this should nearly always be a Welch test - see this great article by XXX on why**), this becomes more tricky when there are multiple brands to consider. The way to achieve this is a post-hoc test of honest significant difference. For a straight Student T test we can use Tukey's Significant Difference Test, for running a post-hoc test on a Welch T test we need to look at the Games-Howell post-hoc test.
 
 OK - problem solved then? Sadly, NPS is a compound statistic, with very wide confidence intervals, as we will see below. We will cover a way to artificially get round this (by bootstrapping our sample), but fundamentally NPS is always going to provide problems for data scientists. A much better option is to advise stakeholders to run 'overall rating' scores.
 
 
-### Why does NPS pose problems for statistical analysis?
+### So why does NPS pose problems for statistical analysis?
 
 NPS is calculated by asking customers to rate the brand from 0 to 10, on how likely they would be to recommend the brand to a friend or colleague. Respondents who score 9 or 10 are considered _Promoters_, those who score 7 or 8 are _Passives_, and those who score 6 or less are considered _Detractors_. The % of all respondents who are Promoters less the % who are Detractors is our Net Promoter Score:
 
@@ -83,13 +83,6 @@ paste0(round(var(brand_a),2)*100,"%")
 Wow - we have an NPS of 10%, but the variance is 49%! This has a major impact on confidence intervals:
 
 ```{r echo = FALSE, comment = ''}
-d <- density(brand_a)
-ggpplot(d, main="Distribution of Transformed NPS responses") 
-abline(h = mean(brand_a)-1.96*(sd(brand_a)/sqrt(length(brand_a))))
-polygon(d, col="red", border="blue")
-```
-
-```{r echo = FALSE, comment = ''}
 library(ggplot2)
 library(scales)
 ci_mean <- data.frame(vals = c(mean(brand_a) - 1.96*(sd(brand_a)/sqrt(length(brand_a))), mean(brand_a), mean(brand_a) + 1.96*(sd(brand_a)/sqrt(length(brand_a)))), labels = c('Lower CI (95%)', 'NPS Statistic', 'Upper CI (95%)'))
@@ -98,3 +91,23 @@ d <- ggplot() + aes(brand_a) +
   geom_density() + geom_vline(data = ci_mean, aes(xintercept= vals), color="blue", size=0.5) + geom_text(data = ci_mean, aes(x=vals, y = 0.5, label = labels), size = 4, angle = 90, vjust = -0.4, ) + ggtitle(label = "Transformed NPS with NPS statistic and Confidence Intervals (95%)") + scale_x_continuous(labels = percent)
 d
 ```
+
+Our survey sample NPS statistic is 10%, but 95% confidence intervals suggest that the _true population NPS statistic_ (the metric if you were to ask the **entire addressable market**) is anywhere between ~-6% and ~28%!
+
+This makes it nigh on impossible to determine a significant difference between our brand and our competitor, who have an NPS of 4% from our survey (again n = 100, this time there are 36 Promoters and 32 Detractors).
+
+```{r echo= FALSE}
+n <- 100
+n_promoters_brand_a <- 30
+n_detractors_brand_a <- 20
+n_passives_brand_b <- n - n_promoters_brand_b - n_detractors_brand_b
+
+
+promoter_sample_brand_b <- rep(1, times = n_promoters_brand_b)
+passive_sample_brand_b <- rep(0, times = n_passives_brand_b)
+detractor_sample_brand_b <- rep(-1, times = n_detractors_brand_b)
+brand_b <- c(promoter_sample_brand_b, passive_sample_brand_b, detractor_sample_brand_b)
+npss_brand_b <- mean(brand_b)```
+
+
+
