@@ -85,7 +85,7 @@ Wow - we have an NPS of 10%, but the variance is 49%! This has a major impact on
 ```{r echo = FALSE, comment = ''}
 library(ggplot2)
 library(scales)
-ci_mean <- data.frame(vals = c(mean(brand_a) - 1.96*(sd(brand_a)/sqrt(length(brand_a))), mean(brand_a), mean(brand_a) + 1.96*(sd(brand_a)/sqrt(length(brand_a)))), labels = c('Lower CI (95%)', 'NPS Statistic', 'Upper CI (95%)'))
+ci_mean <- data.frame(vals = c(mean(brand_a) - 1.96*(sd(brand_a)/sqrt(length(brand_a))), mean(brand_a), mean(brand_a) + 1.96*(sd(brand_a)/sqrt(length(brand_a)))), labels = c('Brand A Lower CI (95%)', 'Brand A NPS Statistic', 'Brand A Upper CI (95%)'))
 
 d <- ggplot() + aes(brand_a) + 
   geom_density() + geom_vline(data = ci_mean, aes(xintercept= vals), color="blue", size=0.5) + geom_text(data = ci_mean, aes(x=vals, y = 0.5, label = labels), size = 4, angle = 90, vjust = -0.4, ) + ggtitle(label = "Transformed NPS with NPS statistic and Confidence Intervals (95%)") + scale_x_continuous(labels = percent)
@@ -94,12 +94,12 @@ d
 
 Our survey sample NPS statistic is 10%, but 95% confidence intervals suggest that the _true population NPS statistic_ (the metric if you were to ask the **entire addressable market**) is anywhere between ~-6% and ~28%!
 
-This makes it nigh on impossible to determine a significant difference between our brand and our competitor, who have an NPS of 4% from our survey (again n = 100, this time there are 36 Promoters and 32 Detractors).
+This makes it nigh on impossible to determine a significant difference between our brand and our competitor, who have an NPS of -5% from our survey (again n = 100, this time there are 36 Promoters and 32 Detractors).
 
 ```{r echo= FALSE}
 n <- 100
-n_promoters_brand_a <- 30
-n_detractors_brand_a <- 20
+n_promoters_brand_b <- 20
+n_detractors_brand_b <- 25
 n_passives_brand_b <- n - n_promoters_brand_b - n_detractors_brand_b
 
 
@@ -107,7 +107,18 @@ promoter_sample_brand_b <- rep(1, times = n_promoters_brand_b)
 passive_sample_brand_b <- rep(0, times = n_passives_brand_b)
 detractor_sample_brand_b <- rep(-1, times = n_detractors_brand_b)
 brand_b <- c(promoter_sample_brand_b, passive_sample_brand_b, detractor_sample_brand_b)
-npss_brand_b <- mean(brand_b)```
+npss_brand_b <- mean(brand_b)
 
+df <- as.data.table(cbind(brand_a, brand_b))
+melted <- melt(df)
 
+ci_mean_a <- data.frame(vals = c(mean(brand_a) - 1.96*(sd(brand_a)/sqrt(length(brand_a))), mean(brand_a), mean(brand_a) + 1.96*(sd(brand_a)/sqrt(length(brand_a)))), labels = c('Brand A Lower CI (95%)', 'Brand A NPS Statistic', 'Brand A Upper CI (95%)'))
+
+ci_mean_b <- data.frame(vals = c(mean(brand_b) - 1.96*(sd(brand_a)/sqrt(length(brand_b))), mean(brand_b), mean(brand_b) + 1.96*(sd(brand_b)/sqrt(length(brand_b)))), labels = c('Brand B Lower CI (95%)', 'Brand B NPS Statistic', 'Brand B Upper CI (95%)'))
+
+d <- ggplot(data = melted) + aes(x = value, fill = variable, alpha = 0.5) + 
+  geom_density() + geom_vline(data = ci_mean_a, aes(xintercept= vals), color="blue", size=0.5) + geom_text(data = ci_mean_a, aes(xintercept= vals, label = labels))
+##+ geom_text(data = ci_mean_a, aes(x=vals, y = 0.5, label = labels), size = 4, angle = 90, vjust = -0.4) + geom_vline(data = ci_mean_b, aes(xintercept= vals), color="red", size=0.5) + geom_text(data = ci_mean_b, aes(x=vals, y = 0.5, label = labels), size = 4, angle = 90, vjust = -0.4, )  + ggtitle(label = "NPS statistic and Confidence Intervals (95%) for Brands A and B") + scale_x_continuous(labels = percent)
+d
+```
 
