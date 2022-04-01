@@ -109,9 +109,6 @@ detractor_sample_brand_b <- rep(-1, times = n_detractors_brand_b)
 brand_b <- c(promoter_sample_brand_b, passive_sample_brand_b, detractor_sample_brand_b)
 npss_brand_b <- mean(brand_b)
 
-df <- data.table::as.data.table(cbind(brand_a, brand_b))
-melted <- data.table::melt(df)
-
 ci_mean_a <- data.frame(vals = c(mean(brand_a) - 1.96*(sd(brand_a)/sqrt(length(brand_a))), mean(brand_a), mean(brand_a) + 1.96*(sd(brand_a)/sqrt(length(brand_a)))), labels = c('Brand A Lower CI (95%)', 'Brand A NPS Statistic', 'Brand A Upper CI (95%)'))
 
 ci_mean_b <- data.frame(vals = c(mean(brand_b) - 1.96*(sd(brand_a)/sqrt(length(brand_b))), mean(brand_b), mean(brand_b) + 1.96*(sd(brand_b)/sqrt(length(brand_b)))), labels = c('Brand B Lower CI (95%)', 'Brand B NPS Statistic', 'Brand B Upper CI (95%)'))
@@ -142,6 +139,37 @@ To reduce the width of our confidence intervals around the sample mean $\overlin
 
 Bootstrapping involves sampling _from your sample_ with replacement. Imagine you have a box full of 10,000 red and blue marbles (your population), and you don't know the exact ratio of red to blue, so you take a sample of 100 marbles to estimate this, and place them in a bag. The bag (your sample) is the equivalent to our survey. The bag is believed to be representative of the total box of marbles, but in order to better build confidence about your sample mean, you randomly sample the bag (taking a marble out, recording its colour, and returning it to the bag) and note the ratio of reds to blues you record with this _increasing_ sample of marbles. The idea is that, with multiple samples _of the sample_, we will settle on a stable sample ratio that is closer to the true population proportion. This act of sampling with replacement effectively increases the sample size of our survey.
 
+By increasing the sample size, the denominator is increased, thereby reducing the overall width of our confidence intervals.
 
+Below we can see the same samples, but with bootstrapping with replacement so that our N is 500 instead of 100:
+
+```{r echo= FALSE, warning = FALSE}
+library(stringr)
+library(ggplot2)
+library(scales)
+
+set.seed(45)
+
+brand_a_bs <- sample(brand_a, 500, replace = T)
+brand_b_bs <- sample(brand_b, 500, replace = T)
+
+ci_mean_a_bs <- data.frame(vals = c(mean(brand_a_bs) - 1.96*(sd(brand_a_bs)/sqrt(length(brand_a_bs))), mean(brand_a_bs), mean(brand_a_bs) + 1.96*(sd(brand_a_bs)/sqrt(length(brand_a_bs)))), labels = c('Brand A Lower CI (95%)', 'Brand A NPS Statistic', 'Brand A Upper CI (95%)'))
+
+ci_mean_b_bs <- data.frame(vals = c(mean(brand_b_bs) - 1.96*(sd(brand_b_bs)/sqrt(length(brand_b_bs))), mean(brand_b_bs), mean(brand_b_bs) + 1.96*(sd(brand_b_bs)/sqrt(length(brand_b_bs)))), labels = c('Brand B Lower CI (95%)', 'Brand B NPS Statistic', 'Brand B Upper CI (95%)'))
+
+cis_bs <- data.table::as.data.table(rbind(ci_mean_a_bs, ci_mean_b_bs))
+cis_bs[, brand := stringr::str_extract(labels, regex("Brand [AB]"))]
+ciscast_bs <- cis_bs
+ciscast_bs[, labels:= gsub("^Brand [AB] ","",labels)]
+ciscast_bs <- data.table::dcast(ciscast_bs, value.var = "vals", brand ~ labels)
+names(ciscast_bs) <- tolower(gsub(" ","_", names(ciscast_bs)))
+ciscast_bs$brand <- as.factor(ciscast_bs$brand)
+
+c <- ggplot() + geom_point(data = ciscast_bs, aes(x = brand, y = ciscast_bs$nps_statistic, color = ciscast_bs$brand),size = 5) + geom_errorbar(aes(x = ciscast_bs$brand, ymin = ciscast_bs$`lower_ci_(95%)`, ymax = ciscast_bs$`upper_ci_(95%)`)) + ggplot2::ylab("NPS Statistic with Confidence Intervals (95%)") + xlab("Brand") + labs(colour = "Brands", title = "Bootstrapped NPS and Confidence Intervals (95%) for Brands A and B", subtitle = "Original Sample 100, Bootstrapped N of 500") + scale_y_continuous(labels = percent)
+c
+
+```
+
+Wow! bootstrapping has considerably reduced the width of our Confidence Intervals, and we can now see a clear, significant difference between the two brands! Note that the sampling with replacement has also slightly effected our sample means
 
 Whilst this can be achieved by a simple T test for two brands (**NB:this should nearly always be a Welch test - see this great article by XXX on why**), this becomes more tricky when there are multiple brands to consider. The way to achieve this is a post-hoc test of honest significant difference. For a straight Student T test we can use Tukey's Significant Difference Test, for running a post-hoc test on a Welch T test we need to look at the Games-Howell post-hoc test.
