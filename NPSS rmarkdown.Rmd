@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Net Promoter Score and Confidence Intervals: A cautionary tale
 
-Those who have undertaken quantitative consumer research to understand competitive positioning are likely to have come across this scenario. Your team has run a consumer survey to show that the brand is more popular than the competition. The CEO wants to proclaim that our brand is better than our major competitor, since our NPS (Net Promoter Score) is higher! There's just one problem - it's for a serious fundraising round, and the legal team are concerned that we could be overstating our advantage: 
+Those who have undertaken quantitative consumer research to understand competitive positioning are likely to have come across this scenario. Your team has run a consumer survey to show that the brand is more popular than the competition. The CEO wants to proclaim that our brand is better than our major competitor, since our NPS (Net Promoter Score) is higher! There's just one problem - it's for a serious fundraising round, and the rest of the Exec are concerned that we could be overstating our advantage: 
 
 _"Is there a way we can say that the difference in Net Promoter Score is_ __statistically significant?"__
 
