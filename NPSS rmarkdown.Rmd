@@ -93,9 +93,10 @@ Our survey sample NPS statistic is 10%, but 95% confidence intervals suggest tha
 
 This makes it impossible to determine a significant difference between our brand and our competitor, who have an NPS of -5% from our survey (again n = 100, this time there are 36 Promoters and 32 Detractors).
 
-```{r echo= FALSE}
+```{r echo= FALSE, warning = FALSE}
 library(stringr)
 library(ggplot2)
+library(scales)
 n <- 100
 n_promoters_brand_b <- 30
 n_detractors_brand_b <- 35
@@ -117,11 +118,15 @@ ci_mean_b <- data.frame(vals = c(mean(brand_b) - 1.96*(sd(brand_a)/sqrt(length(b
 
 cis <- data.table::as.data.table(rbind(ci_mean_a, ci_mean_b))
 cis[, brand := stringr::str_extract(labels, regex("Brand [AB]"))]
+ciscast <- cis
+ciscast[, labels:= gsub("^Brand [AB] ","",labels)]
+ciscast <- data.table::dcast(ciscast, value.var = "vals", brand ~ labels)
+names(ciscast) <- tolower(gsub(" ","_", names(ciscast)))
+ciscast$brand <- as.factor(ciscast$brand)
 
-
-d <- ggplot(data = melted) + aes(x = value, fill = variable, alpha = 0.5) + geom_density() + geom_vline(data = cis, aes(xintercept= vals, color = brand), size=0.5) + geom_text(data = cis, aes(x = vals, label = labels))
-##+ geom_text(data = ci_mean_a, aes(x=vals, y = 0.5, label = labels), size = 4, angle = 90, vjust = -0.4) + geom_vline(data = ci_mean_b, aes(xintercept= vals), color="red", size=0.5) + geom_text(data = ci_mean_b, aes(x=vals, y = 0.5, label = labels), size = 4, angle = 90, vjust = -0.4, )  + ggtitle(label = "NPS statistic and Confidence Intervals (95%) for Brands A and B") + scale_x_continuous(labels = percent)
-d
+b <- ggplot() + geom_point(data = ciscast, aes(x = brand, y = ciscast$nps_statistic, color = ciscast$brand),size = 5) + geom_errorbar(aes(x = ciscast$brand, ymin = ciscast$`lower_ci_(95%)`, ymax = ciscast$`upper_ci_(95%)`)) + ggplot2::ylab("NPS Statistic with Confidence Intervals (95%)") + xlab("Brand") + labs(colour = "Brands", title = "NPS and Confidence Intervals (95%) for Brands A and B") + scale_y_continuous(labels = percent)
+b
+##ggplot() + geom_crossbar(data = ciscast, aes(x = "nps_statistic", xmin = "lower_ci_(95%)", xmax = ##"upper_ci_(95%)", y = "brand"))
 ```
 
 When confidence intervals are overlapping, it is impossible for us to reject the null hypothesis that there is in fact no meaningful difference between our brands; our CEO can't make his claim that we're more popular. But is there a way we can reduce the width of our confidence intervals so that they cease to overlap?
