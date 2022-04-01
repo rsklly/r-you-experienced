@@ -11,15 +11,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Net Promoter Score and Confidence Intervals: A cautionary tale
 
-Those who have undertaken quantitative consumer research to understand competitive positioning are likely to have come across this scenario. Your team has run a (relatively) large consumer survey to show that your brand is more popular than the competition. The CEO wants to proclaim that our brand is better than our major competitor, since our NPS (Net Promoter Score) is higher! There's just one problem - it's for a serious fundraising round, and the legal team are concerned that we could be overstating our advantage. 
+Those who have undertaken quantitative consumer research to understand competitive positioning are likely to have come across this scenario. Your team has run a consumer survey to show that the brand is more popular than the competition. The CEO wants to proclaim that our brand is better than our major competitor, since our NPS (Net Promoter Score) is higher! There's just one problem - it's for a serious fundraising round, and the legal team are concerned that we could be overstating our advantage: 
 
 _"Is there a way we can say that the difference in Net Promoter Score is_ __statistically significant?"__
 
-The answer to this question, as always, is _it depends_. 
-Statistically significant difference is when, at a given level of confidence, we reject the null hypothesis that two statistics are derived from the same population, and that there is a genuine difference in performance between the two groups. 
-Commercially, this means that we believe there is an acceptably low likelihood that our survey has poorly sampled the true population, and that therefore the difference we see between our two brands is reflective of a real difference that exists in Net Promoter Score.
+Statistically significant difference is when, at a given level of confidence, we reject the null hypothesis that two sample statistics are derived from the same population, and that there is a genuine difference in performance between the two sample groups. Commercially, this means that we believe that the difference we see between our two brands is reflective of a real difference in Net Promoter Score, rather than sampling error.
 
-Whilst this can be achieved by a simple T test for two brands (**NB:this should nearly always be a Welch test - see this great article by XXX on why**), this becomes more tricky when there are multiple brands to consider. The way to achieve this is a post-hoc test of honest significant difference. For a straight Student T test we can use Tukey's Significant Difference Test, for running a post-hoc test on a Welch T test we need to look at the Games-Howell post-hoc test.
+
 
 OK - problem solved then? Sadly, NPS is a compound statistic, with very wide confidence intervals, as we will see below. We will cover a way to artificially get round this (by bootstrapping our sample), but fundamentally NPS is always going to provide problems for data scientists. A much better option is to advise stakeholders to run 'overall rating' scores.
 
@@ -52,7 +50,7 @@ $$
 
 ### Implications for Statistical Analysis
 
-By being able to transform the raw scores into something that can be computed as a mean, then we can also compute standard deviation, and therefore confidence intervals and run hypothesis tests. It is here that our true troubles begin. 
+By being able to transform the raw scores into something that can be computed as a mean, then we can also compute standard deviation, and therefore confidence intervals and run hypothesis tests. Our survey NPS can be seen as a sample mean, with a true It is here that our true troubles begin. 
 
 Our transformed metric will have a mean that sits between -1 and +1, but our variance will be relatively large - every promoter or detractor returns a max or min value! See the example below with a sample of 100 respondents, where there are 30 Promoters and 20 Detractors:
 
@@ -92,9 +90,9 @@ d <- ggplot() + aes(brand_a) +
 d
 ```
 
-Our survey sample NPS statistic is 10%, but 95% confidence intervals suggest that the _true population NPS statistic_ (the metric if you were to ask the **entire addressable market**) is anywhere between ~-6% and ~28%!
+Our survey sample NPS statistic is 10%, but 95% confidence intervals suggest that the _true population NPS statistic_ (the NPS metric if you were to ask the **entire addressable market** instead of a survey sample) is anywhere between -6% and ~28%!
 
-This makes it nigh on impossible to determine a significant difference between our brand and our competitor, who have an NPS of -5% from our survey (again n = 100, this time there are 36 Promoters and 32 Detractors).
+This makes it impossible to determine a significant difference between our brand and our competitor, who have an NPS of -5% from our survey (again n = 100, this time there are 36 Promoters and 32 Detractors).
 
 ```{r echo= FALSE}
 n <- 100
@@ -116,9 +114,29 @@ ci_mean_a <- data.frame(vals = c(mean(brand_a) - 1.96*(sd(brand_a)/sqrt(length(b
 
 ci_mean_b <- data.frame(vals = c(mean(brand_b) - 1.96*(sd(brand_a)/sqrt(length(brand_b))), mean(brand_b), mean(brand_b) + 1.96*(sd(brand_b)/sqrt(length(brand_b)))), labels = c('Brand B Lower CI (95%)', 'Brand B NPS Statistic', 'Brand B Upper CI (95%)'))
 
+cis <- as.data.table(rbind(ci_mean_a, ci_mean_b))
+cis[, brand := str_extract(regex("Brand.."), labels)]
+
+
 d <- ggplot(data = melted) + aes(x = value, fill = variable, alpha = 0.5) + 
-  geom_density() + geom_vline(data = ci_mean_a, aes(xintercept= vals), color="blue", size=0.5) + geom_text(data = ci_mean_a, aes(xintercept= vals, label = labels))
+  geom_density() + geom_vline(data = c(ci_mean_a, aes(xintercept= vals), color="blue", size=0.5) + geom_text(data = ci_mean_a, aes(xintercept= vals, label = labels))
 ##+ geom_text(data = ci_mean_a, aes(x=vals, y = 0.5, label = labels), size = 4, angle = 90, vjust = -0.4) + geom_vline(data = ci_mean_b, aes(xintercept= vals), color="red", size=0.5) + geom_text(data = ci_mean_b, aes(x=vals, y = 0.5, label = labels), size = 4, angle = 90, vjust = -0.4, )  + ggtitle(label = "NPS statistic and Confidence Intervals (95%) for Brands A and B") + scale_x_continuous(labels = percent)
 d
 ```
 
+When confidence intervals are overlapping, it is impossible for us to reject the null hypothesis that there is in fact no meaningful difference between our brands; our CEO can't make his claim that we're more popular. But is there a way we can reduce the width of our confidence intervals so that they cease to overlap?
+
+### Bootstrapping to reduce Confidence Interval Width
+
+Confidence intervals are derived from the following formula:
+
+$$
+Confidence\ Interval\ = \overline{x} \pm z\frac{s}{\sqrt n}
+$$
+To reduce the width of our confidence intervals around the sample mean $\overline{x}$, we need to reduce the width of the curve. We don't want to change the degree of confidence and therefore the $z$ value (1.96 at 5% alpha - our type I error), and we aren't going to be able to reduce our variance, since the transformed version of NPS only has values of 1, 0 or -1. However, there may be a way to increase the denominator, by bootstrapping the sample.
+
+Bootstrapping involves sampling _from your sample_ with replacement. Imagine you have a box full of 10,000 red and blue marbles (your population), and you don't know the exact ratio of red to blue, so you take a sample of 100 marbles to estimate this, and place them in a bag. The bag (your sample) is the equivalent to our survey. The bag is believed to be representative of the total box of marbles, but in order to better build confidence about your sample mean, you randomly sample the bag (taking a marble out, recording its colour, and returning it to the bag) and note the ratio of reds to blues you record with this _increasing_ sample of marbles. The idea is that, with multiple samples _of the sample_, we will settle on a stable sample ratio that is closer to the true population proportion. This act of sampling with replacement effectively increases the sample size of our survey.
+
+
+
+Whilst this can be achieved by a simple T test for two brands (**NB:this should nearly always be a Welch test - see this great article by XXX on why**), this becomes more tricky when there are multiple brands to consider. The way to achieve this is a post-hoc test of honest significant difference. For a straight Student T test we can use Tukey's Significant Difference Test, for running a post-hoc test on a Welch T test we need to look at the Games-Howell post-hoc test.

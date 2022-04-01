@@ -35,3 +35,14 @@ npss_brand_b <- mean(brand_b)
 #passive_sample_brand_a <- sample(passives, n_passives_brand_a, replace = T)
 #detractor_sample_brand_a <- sample(detractors, n_detractors_brand_a, replace = T)
 #brand_a <- c(promoter_sample_brand_a, passive_sample_brand_a, detractor_sample_brand_a)
+
+
+
+
+ci_mean_a <- data.frame(vals = c(mean(brand_a) - 1.96*(sd(brand_a)/sqrt(length(brand_a))), mean(brand_a), mean(brand_a) + 1.96*(sd(brand_a)/sqrt(length(brand_a)))), labels = c('Brand A Lower CI (95%)', 'Brand A NPS Statistic', 'Brand A Upper CI (95%)'))
+
+ci_mean_b <- data.frame(vals = c(mean(brand_b) - 1.96*(sd(brand_a)/sqrt(length(brand_b))), mean(brand_b), mean(brand_b) + 1.96*(sd(brand_b)/sqrt(length(brand_b)))), labels = c('Brand B Lower CI (95%)', 'Brand B NPS Statistic', 'Brand B Upper CI (95%)'))
+
+d <- ggplot(data = melted) + aes(x = value, fill = variable) + 
+  geom_density() + geom_vline(data = ci_mean_a, aes(xintercept= vals), color="blue", size=0.5) + geom_text(data = ci_mean_a, aes(x=vals, y = 0.5, label = labels), size = 4, angle = 90, vjust = -0.4) + geom_vline(data = ci_mean_b, aes(xintercept= vals), color="red", size=0.5) + geom_text(data = ci_mean_b, aes(x=vals, y = 0.5, label = labels), size = 4, angle = 90, vjust = -0.4, )  + ggtitle(label = "NPS statistic and Confidence Intervals (95%) for Brands A and B") + scale_x_continuous(labels = percent)
+d
