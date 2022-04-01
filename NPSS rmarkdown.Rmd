@@ -11,13 +11,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Net Promoter Score and Confidence Intervals: A cautionary tale
 
-Those who have undertaken quantitative consumer research to understand competitive positioning are likely to have come across this scenario. Your team has run a consumer survey to show that the brand is more popular than the competition. The CEO wants to proclaim that our brand is better than our major competitor, since our NPS (Net Promoter Score) is higher! There's just one problem - it's for a serious fundraising round, and the rest of the Exec are concerned that we could be overstating our advantage: 
+Those who have undertaken quantitative consumer research to understand competitive positioning may well have come across this scenario. Your team has run a consumer survey to understand Consumer Key Purchasing Criteria (KPCs) and competitive brand positioning. The CEO wants to proclaim that our brand is better than our major competitor, since our Net Promoter Score (NPS) is higher! There's just one problem - it's for a serious fundraising round, and the rest of the Exec are concerned that we could be overstating our advantage: 
 
 _"Is there a way we can say that the difference in Net Promoter Score is_ __statistically significant?"__
 
-Statistically significant difference is when, at a given level of confidence, we reject the null hypothesis that two sample statistics are derived from the same population, and that there is a genuine difference in performance between the two sample groups. Commercially, this means that we believe that the difference we see between our two brands is reflective of a real difference in Net Promoter Score, rather than sampling error.
+A statistically significant difference is when, at a given level of confidence, we reject the null hypothesis that two sample statistics are derived from the same population, and that there is a genuine difference in performance between the two sample groups. Commercially, this means that we believe that the difference we see between our two brands is reflective of a real difference in Net Promoter Score, rather than sampling error.
 
-OK - problem solved then? Sadly, NPS is a compound statistic, with very wide confidence intervals, as we will see below. We will cover a way to artificially get round this (by bootstrapping our sample), but fundamentally NPS is always going to provide problems for data scientists. A much better option is to advise stakeholders to run 'overall rating' scores.
+OK - problem solved then? Well, NPS is a compound statistic, with very wide confidence intervals, as we will see below. We will cover a way to artificially get round this (by bootstrapping our sample), but fundamentally NPS is always going to provide problems for data scientists. A much better option is to advise stakeholders to run 'overall rating' scores. That being said, NPS is a universally understood metric, so let's see how we can make it work as best we can. 
 
 ### So why does NPS pose problems for statistical analysis?
 
@@ -26,7 +26,9 @@ NPS is calculated by asking customers how likely they would be to recommend the 
 $$ 
 Net\ Promoter\ Score = \% Promoters - \% Detractors
 $$
-This can be also calculated as follows:
+This creates a challenge for us when calculating _statistical differences_. Normally, we compare sample means or sample proportions, but at first glance NPS doesn't appear to be anything of the sort - it is the difference in proportions of two groups. However, we can re-arrange our NPS formula to generate a sample mean.
+
+Thinking back to how we previously formulated NPS, it can also be calculated as follows:
 
 $$
 Net\ Promoter\ Score = \frac{Number\ of\ Promoters}{Total\ Number\ of\ Respondents} - \frac{Number\ of\ Detractors}{Total\ Number\ of\ Respondents} 
@@ -66,16 +68,16 @@ brand_a <- c(promoter_sample_brand_a, passive_sample_brand_a, detractor_sample_b
 #### Net Promoter Score (as %)
 
 ```{r echo = FALSE, comment = ''}
-paste0(round(mean(brand_a),2)*100,"%")
+cat(paste0(round(mean(brand_a),2)*100,"%"))
 ```
 
 #### NPS Variance (as %)
 
 ```{r echo = FALSE, comment = ''}
-paste0(round(var(brand_a),2)*100,"%")
+cat(paste0(round(var(brand_a),2)*100,"%"))
 ```
 
-Wow - we have an NPS of 10%, but the variance is 49%! This has a major impact on confidence intervals:
+Wow - we have an NPS of 10%, but the variance is 49%! This is perhaps unsurprising, given that respondents' scores are only ever +1 (the max), 0, or -1 (the min). Consequently, confidence intervals are quite wide:
 
 ```{r echo = FALSE, comment = ''}
 library(ggplot2)
@@ -87,15 +89,16 @@ d <- ggplot() + aes(brand_a) +
 d
 ```
 
-Our survey sample NPS statistic is 10%, but 95% confidence intervals suggest that the _true population NPS statistic_ (the NPS metric if you were to ask the **entire addressable market** instead of a survey sample) is anywhere between -6% and ~28%!
+Our survey sample NPS statistic is 10%, but 95% confidence intervals suggest that the _true population NPS statistic_ (NPS if you were to ask the **entire addressable market** instead of a survey sample) is anywhere between -6% and 28%!
 
 This makes it impossible to determine a significant difference between our brand and our competitor, who have an NPS of -5% from our survey (again n = 100, this time there are 36 Promoters and 32 Detractors).
 
 ```{r echo= FALSE}
 library(stringr)
+library(ggplot2)
 n <- 100
-n_promoters_brand_b <- 20
-n_detractors_brand_b <- 25
+n_promoters_brand_b <- 30
+n_detractors_brand_b <- 35
 n_passives_brand_b <- n - n_promoters_brand_b - n_detractors_brand_b
 
 
@@ -113,10 +116,10 @@ ci_mean_a <- data.frame(vals = c(mean(brand_a) - 1.96*(sd(brand_a)/sqrt(length(b
 ci_mean_b <- data.frame(vals = c(mean(brand_b) - 1.96*(sd(brand_a)/sqrt(length(brand_b))), mean(brand_b), mean(brand_b) + 1.96*(sd(brand_b)/sqrt(length(brand_b)))), labels = c('Brand B Lower CI (95%)', 'Brand B NPS Statistic', 'Brand B Upper CI (95%)'))
 
 cis <- data.table::as.data.table(rbind(ci_mean_a, ci_mean_b))
-cis[, brand := stringr::str_extract(regex("Brand.."), labels)]
+cis[, brand := stringr::str_extract(labels, regex("Brand [AB]"))]
 
 
-d <- ggplot(data = melted) + aes(x = value, fill = variable, alpha = 0.5) + geom_density() + geom_vline(data = ci_mean_a, aes(xintercept= vals), color="blue", size=0.5) 
+d <- ggplot(data = melted) + aes(x = value, fill = variable, alpha = 0.5) + geom_density() + geom_vline(data = cis, aes(xintercept= vals, color = brand), size=0.5) + geom_text(data = cis, aes(x = vals, label = labels))
 ##+ geom_text(data = ci_mean_a, aes(x=vals, y = 0.5, label = labels), size = 4, angle = 90, vjust = -0.4) + geom_vline(data = ci_mean_b, aes(xintercept= vals), color="red", size=0.5) + geom_text(data = ci_mean_b, aes(x=vals, y = 0.5, label = labels), size = 4, angle = 90, vjust = -0.4, )  + ggtitle(label = "NPS statistic and Confidence Intervals (95%) for Brands A and B") + scale_x_continuous(labels = percent)
 d
 ```
