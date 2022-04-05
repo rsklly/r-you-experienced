@@ -3,6 +3,7 @@ title: "NPSS"
 author: "Ross Kelly"
 date: "30/03/2022"
 output: html_document
+runtime: shiny
 ---
 
 ```{r setup, include=FALSE}
@@ -13,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Those who have undertaken quantitative consumer research to understand competitive positioning may well have come across this scenario. Your team has run a consumer survey to understand Consumer Key Purchasing Criteria (KPCs) and competitive brand positioning. The CEO wants to proclaim that our brand is better than our major competitor, since our Net Promoter Score (NPS) is higher! There's just one problem - it's for a serious fundraising round, and the rest of the Exec are concerned that we could be overstating our advantage: 
 
-_"Is there a way we can say that the difference in Net Promoter Score is_ __statistically significant?"__
+> _"Is there a way we can say that the difference in Net Promoter Score is_ __statistically significant?"__
 
 A statistically significant difference is when, at a given level of confidence, we reject the null hypothesis that two sample statistics are derived from the same population, and that there is a genuine difference in performance between the two sample groups. Commercially, this means that we believe that the difference we see between our two brands is reflective of a real difference in Net Promoter Score, rather than sampling error.
 
@@ -121,12 +122,12 @@ ciscast <- data.table::dcast(ciscast, value.var = "vals", brand ~ labels)
 names(ciscast) <- tolower(gsub(" ","_", names(ciscast)))
 ciscast$brand <- as.factor(ciscast$brand)
 
-b <- ggplot() + geom_point(data = ciscast, aes(x = brand, y = ciscast$nps_statistic, color = ciscast$brand),size = 5) + geom_errorbar(aes(x = ciscast$brand, ymin = ciscast$`lower_ci_(95%)`, ymax = ciscast$`upper_ci_(95%)`)) + ggplot2::ylab("NPS Statistic with Confidence Intervals (95%)") + xlab("Brand") + labs(colour = "Brands", title = "NPS and Confidence Intervals (95%) for Brands A and B") + scale_y_continuous(labels = percent)
+b <- ggplot() + geom_point(data = ciscast, aes(x = brand, y = ciscast$nps_statistic, color = ciscast$brand),size = 5) + geom_errorbar(aes(x = ciscast$brand, ymin = ciscast$`lower_ci_(95%)`, ymax = ciscast$`upper_ci_(95%)`)) + ggplot2::ylab("NPS Statistic with Confidence Intervals (95%)") + xlab("Brand") + labs(colour = "NPS", title = "NPS and Confidence Intervals (95%) for Brands A and B") + scale_y_continuous(labels = percent)
 b
 ##ggplot() + geom_crossbar(data = ciscast, aes(x = "nps_statistic", xmin = "lower_ci_(95%)", xmax = ##"upper_ci_(95%)", y = "brand"))
 ```
 
-When confidence intervals are overlapping, it is impossible for us to reject the null hypothesis that there is in fact no meaningful difference between our brands; our CEO can't make his claim that we're more popular. But is there a way we can reduce the width of our confidence intervals so that they cease to overlap?
+When confidence intervals are overlapping, it is impossible for us to reject the null hypothesis that there is no meaningful difference between our brands; our CEO can't make his claim that we're more popular. But is there a way we can reduce the width of our confidence intervals so that they cease to overlap?
 
 ### Bootstrapping to reduce Confidence Interval Width
 
@@ -165,11 +166,22 @@ ciscast_bs <- data.table::dcast(ciscast_bs, value.var = "vals", brand ~ labels)
 names(ciscast_bs) <- tolower(gsub(" ","_", names(ciscast_bs)))
 ciscast_bs$brand <- as.factor(ciscast_bs$brand)
 
-c <- ggplot() + geom_point(data = ciscast_bs, aes(x = brand, y = ciscast_bs$nps_statistic, color = ciscast_bs$brand),size = 5) + geom_errorbar(aes(x = ciscast_bs$brand, ymin = ciscast_bs$`lower_ci_(95%)`, ymax = ciscast_bs$`upper_ci_(95%)`)) + ggplot2::ylab("NPS Statistic with Confidence Intervals (95%)") + xlab("Brand") + labs(colour = "Brands", title = "Bootstrapped NPS and Confidence Intervals (95%) for Brands A and B", subtitle = "Original Sample 100, Bootstrapped N of 500") + scale_y_continuous(labels = percent)
+c <- ggplot() + geom_point(data = ciscast_bs, aes(x = brand, y = ciscast_bs$nps_statistic, color = ciscast_bs$brand),size = 5) + geom_errorbar(aes(x = ciscast_bs$brand, ymin = ciscast_bs$`lower_ci_(95%)`, ymax = ciscast_bs$`upper_ci_(95%)`)) + ggplot2::ylab("NPS Statistic with Confidence Intervals (95%)") + xlab("Brand") + labs(colour = "NPS", title = "Bootstrapped NPS and Confidence Intervals (95%) for Brands A and B", subtitle = "Original Sample 100, Bootstrapped N of 500") + scale_y_continuous(labels = percent)
 c
-
 ```
 
-Wow! bootstrapping has considerably reduced the width of our Confidence Intervals, and we can now see a clear, significant difference between the two brands! Note that the sampling with replacement has also slightly effected our sample means
+Wow! bootstrapping has considerably reduced the width of our Confidence Intervals, and we can now see a clear, significant difference between the two brands! Note that the sampling with replacement has also slightly effected our sample means - we haven't _copied_ our original sample 500 times, but rather taken 500 random records (with replacement) from the sample. 
 
-Whilst this can be achieved by a simple T test for two brands (**NB:this should nearly always be a Welch test - see this great article by XXX on why**), this becomes more tricky when there are multiple brands to consider. The way to achieve this is a post-hoc test of honest significant difference. For a straight Student T test we can use Tukey's Significant Difference Test, for running a post-hoc test on a Welch T test we need to look at the Games-Howell post-hoc test.
+### Bootstrapping - with great power comes great responsibility
+
+At this point you're likely thinking one of two things: wow, I don't need to spend as much on consumer research since I can bootstrap a tiny sample; or _this can be used to hide poor sampling and suggest results are significant when they aren't_. There are a few key rules to abide by when bootstrapping to avoid this:
+
+#### Assumptions when applying Bootstrapping
+
+  * The true population is _very large_ such that taking a sample has a negligible impact
+
+You may now be asking yourself - but sure
+
+### Testing scores between multiple brands
+
+The formal test to prove statistical significance between these two groups is  for Whilst this can be achieved by a simple T test for two brands (**NB: this should nearly always be a Welch test - see this great article by XXX on why**), this becomes more tricky when there are multiple brands to consider. The way to achieve this is a post-hoc test of honest significant difference. For a straight Student T test we can use Tukey's Significant Difference Test, for running a post-hoc test on a Welch T test we need to look at the Games-Howell post-hoc test.
